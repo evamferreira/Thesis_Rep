@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct 21 16:01:57 2020
+Created on Thu Oct 22 12:04:26 2020
 
 @author: evaferreira
 """
@@ -13,22 +13,14 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.patches as mpatches
-import time
-
-# Classifier Libraries
-import collections
 
 
 # Other Libraries
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import make_pipeline
-from imblearn.pipeline import make_pipeline as imbalanced_make_pipeline
 from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import NearMiss
-from imblearn.metrics import classification_report_imbalanced
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-from collections import Counter
 from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.metrics import confusion_matrix
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -59,8 +51,6 @@ sns.countplot('dlrsn', data=Y_df, palette=colors)
 plt.title('Bankruptcy Distributions \n (0: No-Bankrupt || 1: Bankrupt)', fontsize=14)
 
 #%%
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import StratifiedShuffleSplit
 
 print('Non-Bankrupt', round(Y_df['dlrsn'].value_counts()[0]/len(Y_df) * 100,2), '% of the dataset')
 print('Bankrupt', round(Y_df['dlrsn'].value_counts()[1]/len(Y_df) * 100,2), '% of the dataset')
@@ -97,3 +87,82 @@ print(test_counts_label/ len(original_ytest))
 
 
 #%%
+
+# SMOTE Technique (OverSampling) After splitting and Cross Validating
+sm = SMOTE(sampling_strategy='minority', random_state=42)
+# Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+
+# This will be the data were we are going to 
+Xsm_train, ysm_train = sm.fit_sample(original_Xtrain, original_ytrain)
+
+#%%
+
+from sklearn import svm
+clf = svm.SVC()
+clf.fit(Xsm_train, ysm_train)
+
+#%%
+oversample_bankruptcy_predictions = clf.predict(original_Xtest)
+
+#%%
+import itertools
+
+# Create a confusion matrix
+def plot_confusion_matrix(cm, classes,
+                          normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title, fontsize=14)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+
+#%%
+
+oversample_smote = confusion_matrix(original_ytest, oversample_bankruptcy_predictions)
+actual_cm = confusion_matrix(original_ytest, original_ytest)
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(oversample_smote, labels, title="OverSample (SMOTE) \n Confusion Matrix", cmap=plt.cm.Oranges)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+#%%
+
+f1 = f1_score(original_ytest, oversample_bankruptcy_predictions)
+acc = accuracy_score(original_ytest, oversample_bankruptcy_predictions)
+recall = recall_score(original_ytest, oversample_bankruptcy_predictions)
+precision = precision_score(original_ytest, oversample_bankruptcy_predictions)
+print(f1, acc, recall, precision)
+

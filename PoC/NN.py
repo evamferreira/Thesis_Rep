@@ -21,6 +21,7 @@ from keras.models import Sequential
 from keras.layers import Activation
 from keras.layers.core import Dense
 from keras.optimizers import Adam
+from keras.metrics import Accuracy, Recall
 
 # Other Libraries
 from sklearn.model_selection import train_test_split
@@ -116,7 +117,7 @@ oversample_model = Sequential([
 
 #%%
 
-oversample_model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+oversample_model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Accuracy(), Recall()])
 
 #%%
 

@@ -110,7 +110,7 @@ n_inputs = Xsm_train.shape[1]
 
 oversample_model = Sequential([
     Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
-    Dense(70, activation='relu'),
+    Dense(80, activation='relu'),
     Dense(1, activation='sigmoid')
 ])
 
@@ -193,3 +193,259 @@ acc = accuracy_score(original_ytest, oversample_bankruptcy_predictions)
 recall = recall_score(original_ytest, oversample_bankruptcy_predictions)
 precision = precision_score(original_ytest, oversample_bankruptcy_predictions)
 print(f1, acc, recall, precision)
+
+#%%
+
+
+#CS NN
+
+
+#%%
+X_CSdf = pd.read_csv('/Users/evaferreira/Downloads/Thesis/Thesis_Rep/Data/X_CS.csv', index_col = 'PERMCO')
+Y_CSdf = pd.read_csv('/Users/evaferreira/Downloads/Thesis/Thesis_Rep/Data/Y_CS.csv', index_col = 'PERMCO')
+X_CSdf.head()
+Y_CSdf.head()
+
+#%%
+
+# Rescale the data
+# RobustScaler is less prone to outliers.
+
+rob_scaler = RobustScaler()
+
+for i in X_CSdf.columns.to_list():    
+    X_CSdf[i] = rob_scaler.fit_transform(X_CSdf[i].values.reshape(-1,1))
+
+X_CSdf.head()
+
+#%%
+colors = ["#0101DF", "#DF0101"]
+
+sns.countplot('dlrsn', data=Y_CSdf, palette=colors)
+plt.title('Bankruptcy Distributions \n (0: No-Bankrupt || 1: Bankrupt)', fontsize=14)
+
+#%%
+
+print('Non-Bankrupt', round(Y_CSdf['dlrsn'].value_counts()[0]/len(Y_CSdf) * 100,2), '% of the dataset')
+print('Bankrupt', round(Y_CSdf['dlrsn'].value_counts()[1]/len(Y_CSdf) * 100,2), '% of the dataset')
+
+X_CS = X_CSdf
+y_CS = Y_CSdf['dlrsn']
+
+sss = StratifiedKFold(n_splits=5, random_state=None, shuffle=False)
+
+for train_index_CS, test_index_CS in sss.split(X_CS, y_CS):
+    print("Train:", train_index_CS, "Test:", test_index_CS)
+    original_Xtrain_CS, original_Xtest_CS = X_CS.iloc[train_index_CS], X_CS.iloc[test_index_CS]
+    original_ytrain_CS, original_ytest_CS = y_CS.iloc[train_index_CS], y_CS.iloc[test_index_CS]
+
+# original_Xtrain, original_Xtest, original_ytrain, original_ytest = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Check the Distribution of the labels
+
+
+# Turn into an array
+original_Xtrain_CS = original_Xtrain_CS.values
+original_Xtest_CS = original_Xtest_CS.values
+original_ytrain_CS = original_ytrain_CS.values
+original_ytest_CS = original_ytest_CS.values
+
+# See if both the train and test label distribution are similarly distributed
+train_unique_label, train_counts_label = np.unique(original_ytrain_CS, return_counts=True)
+test_unique_label, test_counts_label = np.unique(original_ytest_CS, return_counts=True)
+print('-' * 100)
+
+print('Label Distributions: \n')
+print(train_counts_label/ len(original_ytrain_CS))
+print(test_counts_label/ len(original_ytest_CS))
+
+
+#%%
+
+# SMOTE Technique (OverSampling) After splitting and Cross Validating
+sm = SMOTE(sampling_strategy='minority', random_state=42)
+# Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+
+# This will be the data were we are going to 
+Xsm_train_CS, ysm_train_CS = sm.fit_sample(original_Xtrain_CS, original_ytrain_CS)
+
+#%%
+
+n_inputs_CS = Xsm_train_CS.shape[1]
+
+oversample_model_CS = Sequential([
+    Dense(n_inputs, input_shape=(n_inputs_CS, ), activation='relu'),
+    Dense(80, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+
+#%%
+
+oversample_model_CS.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Accuracy(), Recall()])
+
+#%%
+
+oversample_model_CS.fit(Xsm_train_CS, ysm_train_CS, validation_split=0.2,batch_size=15, epochs=50, shuffle=True, verbose=2)
+
+
+#%%
+
+oversample_predictions_CS = oversample_model_CS.predict(original_Xtest_CS, verbose=0)
+
+
+#%%
+
+oversample_bankruptcy_predictions_CS = oversample_model_CS.predict_classes(original_Xtest_CS,batch_size=15, verbose=0)
+
+
+#%%
+
+oversample_smote_CS = confusion_matrix(original_ytest_CS, oversample_bankruptcy_predictions_CS)
+actual_cm_CS = confusion_matrix(original_ytest_CS, original_ytest_CS)
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(oversample_smote_CS, labels, title="OverSample (SMOTE) \n Confusion Matrix", cmap=plt.cm.Oranges)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm_CS, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+#%%
+
+f1_CS = f1_score(original_ytest_CS, oversample_bankruptcy_predictions_CS)
+acc_CS = accuracy_score(original_ytest_CS, oversample_bankruptcy_predictions_CS)
+recall_CS = recall_score(original_ytest_CS, oversample_bankruptcy_predictions_CS)
+precision_CS = precision_score(original_ytest_CS, oversample_bankruptcy_predictions_CS)
+print(f1_CS, acc_CS, recall_CS, precision_CS)
+
+#%%
+
+
+#IT NN
+
+
+#%%
+X_ITdf = pd.read_csv('/Users/evaferreira/Downloads/Thesis/Thesis_Rep/Data/X_IT.csv', index_col = 'PERMCO')
+Y_ITdf = pd.read_csv('/Users/evaferreira/Downloads/Thesis/Thesis_Rep/Data/Y_IT.csv', index_col = 'PERMCO')
+X_ITdf.head()
+Y_ITdf.head()
+
+#%%
+
+# Rescale the data
+# RobustScaler is less prone to outliers.
+
+rob_scaler = RobustScaler()
+
+for i in X_ITdf.columns.to_list():    
+    X_ITdf[i] = rob_scaler.fit_transform(X_ITdf[i].values.reshape(-1,1))
+
+X_ITdf.head()
+
+#%%
+colors = ["#0101DF", "#DF0101"]
+
+sns.countplot('dlrsn', data=Y_ITdf, palette=colors)
+plt.title('Bankruptcy Distributions \n (0: No-Bankrupt || 1: Bankrupt)', fontsize=14)
+
+#%%
+
+print('Non-Bankrupt', round(Y_ITdf['dlrsn'].value_counts()[0]/len(Y_ITdf) * 100,2), '% of the dataset')
+print('Bankrupt', round(Y_ITdf['dlrsn'].value_counts()[1]/len(Y_ITdf) * 100,2), '% of the dataset')
+
+X_IT = X_ITdf
+y_IT = Y_ITdf['dlrsn']
+
+sss = StratifiedKFold(n_splits=5, random_state=None, shuffle=False)
+
+for train_index_IT, test_index_IT in sss.split(X_IT, y_IT):
+    print("Train:", train_index_IT, "Test:", test_index_IT)
+    original_Xtrain_IT, original_Xtest_IT = X_IT.iloc[train_index_IT], X_IT.iloc[test_index_IT]
+    original_ytrain_IT, original_ytest_IT = y_IT.iloc[train_index_IT], y_IT.iloc[test_index_IT]
+
+# original_Xtrain, original_Xtest, original_ytrain, original_ytest = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Check the Distribution of the labels
+
+
+# Turn into an array
+original_Xtrain_IT = original_Xtrain_IT.values
+original_Xtest_IT = original_Xtest_IT.values
+original_ytrain_IT = original_ytrain_IT.values
+original_ytest_IT = original_ytest_IT.values
+
+# See if both the train and test label distribution are similarly distributed
+train_unique_label, train_counts_label = np.unique(original_ytrain_IT, return_counts=True)
+test_unique_label, test_counts_label = np.unique(original_ytest_IT, return_counts=True)
+print('-' * 100)
+
+print('Label Distributions: \n')
+print(train_counts_label/ len(original_ytrain_IT))
+print(test_counts_label/ len(original_ytest_IT))
+
+
+#%%
+
+# SMOTE Technique (OverSampling) After splitting and Cross Validating
+sm = SMOTE(sampling_strategy='minority', random_state=42)
+# Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+
+# This will be the data were we are going to 
+Xsm_train_IT, ysm_train_IT = sm.fit_sample(original_Xtrain_IT, original_ytrain_IT)
+
+#%%
+
+n_inputs_IT = Xsm_train_IT.shape[1]
+
+oversample_model_IT = Sequential([
+    Dense(n_inputs, input_shape=(n_inputs_IT, ), activation='relu'),
+    Dense(80, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+
+#%%
+
+oversample_model_IT.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Accuracy(), Recall()])
+
+#%%
+
+oversample_model_IT.fit(Xsm_train_IT, ysm_train_IT, validation_split=0.2,batch_size=15, epochs=50, shuffle=True, verbose=2)
+
+
+#%%
+
+oversample_predictions_IT = oversample_model_IT.predict(original_Xtest_IT, verbose=0)
+
+
+#%%
+
+oversample_bankruptcy_predictions_IT = oversample_model_IT.predict_classes(original_Xtest_IT,batch_size=15, verbose=0)
+
+
+#%%
+
+oversample_smote_IT = confusion_matrix(original_ytest_IT, oversample_bankruptcy_predictions_IT)
+actual_cm_IT = confusion_matrix(original_ytest_IT, original_ytest_IT)
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(oversample_smote_IT, labels, title="OverSample (SMOTE) \n Confusion Matrix", cmap=plt.cm.Oranges)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm_IT, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+#%%
+
+f1_IT = f1_score(original_ytest_IT, oversample_bankruptcy_predictions_IT)
+acc_IT = accuracy_score(original_ytest_IT, oversample_bankruptcy_predictions_IT)
+recall_IT = recall_score(original_ytest_IT, oversample_bankruptcy_predictions_IT)
+precision_IT = precision_score(original_ytest_IT, oversample_bankruptcy_predictions_IT)
+print(f1_IT, acc_IT, recall_IT, precision_IT)

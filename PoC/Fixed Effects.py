@@ -1,29 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov 11 16:58:43 2020
+Created on Thu Nov 12 16:01:17 2020
 
 @author: evaferreira
 """
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import tensorflow as tf
 import warnings
 warnings.filterwarnings("ignore")
-
-
-# Import Neural Network Library
-import keras
-from keras import backend as K
-from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.metrics import Accuracy, Recall
-
-# Other Libraries
-from imblearn.over_sampling import SMOTE
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score
-from sklearn.metrics import confusion_matrix
 
 df_list = [None]*15
 df_test = [None]*15
@@ -36,6 +22,17 @@ for i in list(range(15)):
     df_test[i] = pd.read_csv('/Users/evaferreira/Downloads/Thesis/Thesis_Rep/PoC/test_dfs/dftest' + str(i) + '.csv')
     df_test[i].set_index(['PERMCO_Y'], inplace=True)
     
+#%%
+
+for i, col in enumerate(df_list[0].columns.to_list()):
+    if col != 'y_t+2':
+        df_list[0][col+'_mean'] = df_list[0][col].rolling(3).mean()
+        df_list[0][col+'_mean'] = df_list[0].iloc[2::3, [17]]
+        df_list[0][col+'_mean'].fillna(method='bfill', inplace=True)
+        df_list[0][col] = df_list[0][col]-df_list[0][col+'_mean']
+        df_list[0].drop(columns=[col+'_mean'], inplace=True)
+
+#%%
 #%%
 import itertools
 
@@ -74,6 +71,13 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
 
+
+#%%
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, roc_auc_score
+from sklearn.metrics import confusion_matrix
+
 #%%
 
 # Rescale the data
@@ -88,32 +92,32 @@ for i in df_list[0].iloc[:,:16].columns.to_list():
     
 for i in df_test[0].iloc[:,:16].columns.to_list():    
     df_test[0].iloc[:,:16][i] = rob_scaler.fit_transform(df_test[0].iloc[:,:16][i].values.reshape(-1,1))
-
+    
+    
 #%%
 
-n_inputs = df_list[0].iloc[:,:16].shape[1]
-
-nn = Sequential([
-    Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
-    Dense(32, activation='relu'),
-    Dense(1, activation='sigmoid')
-])
-
-#%%
-
-nn.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Accuracy(), Recall()])
-
-#%%
-
-nn.fit(df_list[0].iloc[:,:16], df_list[0].iloc[:,16:], validation_split=0.2,batch_size=100, epochs=50, shuffle=True, verbose=2)
+logreg = LogisticRegression()
 
 
 #%%
 
-predictions = nn.predict_classes(df_test[0].iloc[:,:16], verbose=0)
+logreg.fit(df_list[0].iloc[:,:16], df_list[0].iloc[:,16:])
+
+#%%
+
+predictions = logreg.predict(df_test[0].iloc[:,:16])
 
 #%%
 y_test = df_test[0].iloc[:,16:]['y_t+2'].values
+
+#%%
+f1 = f1_score(y_test, predictions)
+acc = accuracy_score(y_test, predictions)
+recall = recall_score(y_test, predictions)
+precision = precision_score(y_test, predictions)
+roc_auc = roc_auc_score(y_test, predictions)
+print(f1, acc, recall, precision, roc_auc)
+
 
 #%%
 
@@ -124,80 +128,8 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm, labels, title="Neural Network Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
 
-#%%
-
-f1 = f1_score(y_test, predictions)
-acc = accuracy_score(y_test, predictions)
-recall = recall_score(y_test, predictions)
-precision = precision_score(y_test, predictions)
-roc_auc = roc_auc_score(y_test, predictions)
-print(f1, acc, recall, precision, roc_auc)
-
-#%% 
-
-# OVERSAMPLING
-
-
-#%%
-X_train = df_list[0].iloc[:,:16]
-y_train = df_list[0].iloc[:,16:]
-
-# SMOTE Technique (OverSampling) After splitting and Cross Validating
-sm = SMOTE(sampling_strategy='minority', random_state=42)
-# Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
-
-
-# This will be the data were we are going to 
-Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
-
-#%%
-
-nn_sm = Sequential([
-    Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
-    Dense(32, activation='relu'),
-    Dense(1, activation='sigmoid')
-])
-
-#%%
-
-nn_sm.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Accuracy(), Recall()])
-
-#%%
-
-nn_sm.fit(Xsm_train, ysm_train, validation_split=0.2,batch_size=100, epochs=50, shuffle=True, verbose=2)
-
-#%%
-
-predictions_sm = nn_sm.predict_classes(df_test[0].iloc[:,:16], verbose=0)
-
-#%%
-y_test = df_test[0].iloc[:,16:]['y_t+2'].values
-
-#%%
-f1_sm = f1_score(y_test, predictions_sm)
-acc_sm = accuracy_score(y_test, predictions_sm)
-recall_sm = recall_score(y_test, predictions_sm)
-precision_sm = precision_score(y_test, predictions_sm)
-roc_auc_sm = roc_auc_score(y_test, predictions_sm)
-print(f1_sm, acc_sm, recall_sm, precision_sm, roc_auc_sm)
-
-
-#%%
-
-predict_cm_sm = confusion_matrix(y_test, predictions_sm)
-actual_cm = confusion_matrix(y_test, y_test)
-labels = ['No Bankruptcy', 'Bankruptcy']
-
-fig = plt.figure(figsize=(16,8))
-
-fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_sm, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
-
-fig.add_subplot(222)
-plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
-    

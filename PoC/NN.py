@@ -18,7 +18,7 @@ import keras
 from keras import backend as K
 from keras.models import Sequential
 from keras.layers.core import Dense
-from keras.metrics import Accuracy, Recall
+from keras.metrics import Accuracy, Recall 
 
 # Other Libraries
 from imblearn.over_sampling import SMOTE
@@ -157,6 +157,8 @@ Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
 
 #%%
 
+n_inputs = df_list[0].iloc[:,:16].shape[1]
+
 nn_sm = Sequential([
     Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
     Dense(32, activation='relu'),
@@ -196,8 +198,217 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_sm, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm_sm, labels, title="BPNN w/ Oversampling \n Confusion Matrix", cmap=plt.cm.Blues)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+#%%
+
+# Train with metric = F1-Score
+
+
+#%%%
+# Create f1 score metric
+
+def get_f1(y_true, y_pred): #taken from old keras source code
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    recall = true_positives / (possible_positives + K.epsilon())
+    f1_val = 2*(precision*recall)/(precision+recall+K.epsilon())
+    return f1_val
+
+
+#%%
+X_train = df_list[0].iloc[:,:16]
+y_train = df_list[0].iloc[:,16:]
+
+# SMOTE Technique (OverSampling) After splitting and Cross Validating
+sm = SMOTE(sampling_strategy='minority', random_state=42)
+# Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+
+# This will be the data were we are going to 
+Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+#%%
+
+n_inputs = df_list[0].iloc[:,:16].shape[1]
+
+nn_f1 = Sequential([
+    Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
+    Dense(32, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+#%%
+
+nn_f1.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Recall(), get_f1])
+
+#%%
+
+nn_f1.fit(Xsm_train, ysm_train, validation_split=0.2,batch_size=100, epochs=50, shuffle=True, verbose=2)
+
+#%%
+
+predictions_f1 = nn_f1.predict_classes(df_test[0].iloc[:,:16], verbose=0)
+
+#%%
+y_test = df_test[0].iloc[:,16:]['y_t+2'].values
+
+#%%
+f1_f1 = f1_score(y_test, predictions_f1)
+acc_f1 = accuracy_score(y_test, predictions_f1)
+recall_f1 = recall_score(y_test, predictions_f1)
+precision_f1 = precision_score(y_test, predictions_f1)
+roc_auc_f1 = roc_auc_score(y_test, predictions_f1)
+print(f1_f1, acc_f1, recall_f1, precision_f1, roc_auc_f1)
+
+
+#%%
+
+predict_cm_f1 = confusion_matrix(y_test, predictions_f1)
+actual_cm = confusion_matrix(y_test, y_test)
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_f1, labels, title="BPNN w/ Oversampling \n Confusion Matrix", cmap=plt.cm.Blues)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
     
+#%%
+
+# GRID SEARCH FOR HYPERPARAMETER TUNNING
+
+#%%
+from sklearn.model_selection import GridSearchCV
+from keras.wrappers.scikit_learn import KerasClassifier
+
+#%%
+def create_model():
+	# create model
+    model = Sequential([
+        Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
+        Dense(32, activation='relu'),
+        Dense(1, activation='sigmoid')])
+    
+	# Compile model
+    model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=[Accuracy(), Recall()])
+    return model
+#%%
+# fix random seed for reproducibility
+seed = 7
+np.random.seed(seed)
+
+# create model
+model = KerasClassifier(build_fn=create_model, verbose=0)
+# define the grid search parameters
+batch_size = [10, 20, 40, 60, 80, 100] #20
+epochs = [10, 50, 100] #100
+param_grid = dict(batch_size=batch_size)
+grid = GridSearchCV(estimator=model, param_grid=param_grid, scoring="f1", verbose=2)
+grid_result = grid.fit(Xsm_train, ysm_train)
+# summarize results
+print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+
+#%%
+#grid search for neurons
+def create_model_neurons(neurons=1):
+	# create model
+    model = Sequential([
+        Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
+        Dense(neurons, activation='relu'),
+        Dense(1, activation='sigmoid')])
+    
+	# Compile model
+    model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=[Accuracy(), Recall()])
+    return model
+
+#%%
+# fix random seed for reproducibility
+seed = 7
+np.random.seed(seed)
+# create model
+model2 = KerasClassifier(build_fn=create_model_neurons, verbose=0)
+# define the grid search parameters
+n_inputs = df_list[0].iloc[:,:16].shape[1]
+neurons = [8, 12, 16, 24, 32]
+batch_size = [10, 20, 40, 60, 80, 100] #20
+epochs = [10, 50, 100] #100
+param_grid2 = dict(neurons=neurons, batch_size=batch_size, epochs=epochs)
+grid2 = GridSearchCV(estimator=model2, param_grid=param_grid2, scoring="f1", verbose=10)
+grid_result2 = grid2.fit(Xsm_train, ysm_train)
+# summarize results
+print("Best: %f using %s" % (grid_result2.best_score_, grid_result2.best_params_))
+
+#%% 
+
+# TUNED HYPERPARAMETERS
+
+
+#%%
+X_train = df_list[0].iloc[:,:16]
+y_train = df_list[0].iloc[:,16:]
+
+# SMOTE Technique (OverSampling) After splitting and Cross Validating
+sm = SMOTE(sampling_strategy='minority', random_state=42)
+# Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+
+# This will be the data were we are going to 
+Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
+
+#%%
+
+n_inputs = df_list[0].iloc[:,:16].shape[1]
+
+nn_tune = Sequential([
+    Dense(n_inputs, input_shape=(n_inputs, ), activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+#%%
+
+nn_tune.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[Accuracy(), Recall()])
+
+#%%
+
+nn_tune.fit(Xsm_train, ysm_train, validation_split=0.2,batch_size=10, epochs=100, shuffle=True, verbose=2)
+
+#%%
+
+predictions_tune = nn_tune.predict_classes(df_test[0].iloc[:,:16], verbose=0)
+
+#%%
+y_test = df_test[0].iloc[:,16:]['y_t+2'].values
+
+#%%
+f1_tune = f1_score(y_test, predictions_tune)
+acc_tune = accuracy_score(y_test, predictions_tune)
+recall_tune = recall_score(y_test, predictions_tune)
+precision_tune = precision_score(y_test, predictions_tune)
+roc_auc_tune = roc_auc_score(y_test, predictions_tune)
+print(f1_tune, acc_tune, recall_tune, precision_tune, roc_auc_tune)
+
+
+#%%
+
+predict_cm_tune = confusion_matrix(y_test, predictions_tune)
+actual_cm = confusion_matrix(y_test, y_test)
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_tune, labels, title="BPNN w/ Tuning \n Confusion Matrix", cmap=plt.cm.Blues)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+#%%

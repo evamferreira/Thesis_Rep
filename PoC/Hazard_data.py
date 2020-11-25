@@ -16,6 +16,13 @@ dfo.drop(columns=['Unnamed: 0'], inplace=True)
 
 #%%
 
+for col in pd.get_dummies(dfo['gind'], prefix='gind').columns:
+    dfo[col] = pd.get_dummies(dfo['gind'], prefix='gind')[col]
+
+dfo.drop(columns=['gind_10'], inplace=True)
+    
+#%%
+
 # TRAIN DFs
 
 
@@ -23,7 +30,7 @@ dfo.drop(columns=['Unnamed: 0'], inplace=True)
 
 def clean_df(dfo0x, year_list):
     # Summing the variables
-    dfo0x['sumvar'] = dfo0x.iloc[:, -8:-1].sum(axis=1)
+    dfo0x['sumvar'] = dfo0x.iloc[:, 6:14].sum(axis=1)
     
     # Cumulative Sum of variables throughout the years per PERMCO
     dfo0x['sumvar'] = dfo0x.groupby('PERMCO').transform(sum).sumvar
@@ -127,6 +134,7 @@ for i in list(range(15)):
 
 for i in list(range(15)):
     ogdf_list[i] = clean_df(ogdf_list[i], year_lists[i])
+    print(i)
     
 #%%
 
@@ -149,7 +157,7 @@ for i in list(range(15)):
 
 def clean_dftest(dfo0x, year_list):
     # Summing the variables
-    dfo0x['sumvar'] = dfo0x.iloc[:, -8:-1].sum(axis=1)
+    dfo0x['sumvar'] = dfo0x.iloc[:, 6:14].sum(axis=1)
     
     # Cumulative Sum of variables throughout the years per PERMCO
     dfo0x['sumvar'] = dfo0x.groupby('PERMCO').transform(sum).sumvar
@@ -257,3 +265,198 @@ for i in list(range(15)):
 
 #for i in list(range(15)): 
 #   df_test[i].to_csv('dftest' + str(i) + '.csv')
+
+#%%
+
+# INDUSTRY DUMMIES
+
+#%%
+
+for col in pd.get_dummies(dfo['gind'], prefix='gind').columns:
+    dfo[col] = pd.get_dummies(dfo['gind'], prefix='gind')[col]
+
+#%%
+
+def create_finaldfind(dfo0x, year_list):
+    NIMTA = dfo0x.loc[:, ['PERMCO', 'fyear', 'NIMTA']]
+    TLMTA = dfo0x.loc[:, ['PERMCO', 'fyear', 'TLMTA']]
+    CASHMTA = dfo0x.loc[:, ['PERMCO', 'fyear', 'CASHMTA']]
+    MB = dfo0x.loc[:, ['PERMCO', 'fyear', 'MB']]
+    SIGMA = dfo0x.loc[:, ['PERMCO', 'fyear', 'SIGMA']]
+    RSIZE = dfo0x.loc[:, ['PERMCO', 'fyear', 'RSIZE']]
+    EXRET = dfo0x.loc[:, ['PERMCO', 'fyear', 'EXRET']]
+    PRICE = dfo0x.loc[:, ['PERMCO', 'fyear', 'PRICE']]
+    gind_15 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_15']]
+    gind_20 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_20']]
+    gind_25 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_25']]
+    gind_30 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_30']]
+    gind_35 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_35']]
+    gind_40 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_40']]
+    gind_45 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_45']]
+    gind_50 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_50']]
+    gind_55 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_55']]
+    gind_60 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_60']]
+    
+    varstr = ['NIMTA', 'TLMTA', 'CASHMTA', 'MB', 'SIGMA', 'RSIZE', 'EXRET'
+              , 'PRICE', 'gind_15', 'gind_20', 'gind_25', 'gind_30',
+              'gind_35', 'gind_40', 'gind_45', 'gind_50', 'gind_55', 'gind_60']
+    var = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+
+    varcols = {c: [] for c in varstr}
+    
+    for i in list(range(18)):
+        var[i] = var[i].set_index(['PERMCO','fyear'])[varstr[i]].unstack()
+        for y in year_list:
+            varcols[varstr[i]].append('{}_{}'.format(varstr[i], y))
+        var[i].columns = varcols[varstr[i]]
+    
+    var_0x1 = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+    var_0x2 = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+    var_0x3 = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+    var_0x4 = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+    var_yrs = [var_0x1,var_0x2,var_0x3,var_0x4]
+    
+    for j in list(range(4)):
+        for i in list(range(18)):
+            var_yrs[j][i] = var[i].iloc[:,[j,j+1]]
+            
+    df_yrs = [var_yrs[0][0], var_yrs[1][0], var_yrs[2][0], var_yrs[3][0]]
+    
+    for j in list(range(4)):
+        for df_ in var_yrs[j][1:]:
+            df_yrs[j] = df_yrs[j].merge(df_, on='PERMCO')
+    
+    ind_todrop = [16,18,20,22,24,26,28,30,32,34]
+    for j in list(range(4)):
+        df_yrs[j].drop(columns=df_yrs[j].columns[ind_todrop], inplace=True)
+    
+    col_names = ['NIMTA_t','NIMTA_t+1','TLMTA_t','TLMTA_t+1','CASHMTA_t','CASHMTA_t+1','MB_t','MB_t+1','SIGMA_t',
+             'SIGMA_t+1','RSIZE_t','RSIZE_t+1','EXRET_t','EXRET_t+1','PRICE_t','PRICE_t+1',
+              'gind_15', 'gind_20', 'gind_25', 'gind_30',
+              'gind_35', 'gind_40', 'gind_45', 'gind_50', 'gind_55', 'gind_60']
+    
+    for j in list(range(4)):
+        df_yrs[j].columns = col_names
+        df_yrs[j]['PERMCO_Y'] = df_yrs[j].index.astype(str) + '_' + str(year_list[j]+2)
+        df_yrs[j].set_index('PERMCO_Y', inplace=True)
+        
+    df_yrs[0] = df_yrs[0].append(df_yrs[1])
+    df_yrs[0] = df_yrs[0].append(df_yrs[2])
+    df_yrs[0] = df_yrs[0].sort_index()
+    
+    return df_yrs[0]
+
+#%%
+
+df_ind = [pd.DataFrame() for i in range(15)]
+for i in list(range(15)):
+    df_ind[i] = create_finaldfind(ogdf_list[i], year_lists[i])
+    print(i)
+    
+#%%
+
+for i in list(range(15)):
+    df_ind[i] = append_dlrsn(ogdf_list[i], df_ind[i], year_lists[i])
+    df_ind[i] = df_ind[i].sort_index()
+    
+
+#%%
+
+# TEST
+
+#%%
+
+def create_finaldftestind(dfo0x, year_list):
+    NIMTA = dfo0x.loc[:, ['PERMCO', 'fyear', 'NIMTA']]
+    TLMTA = dfo0x.loc[:, ['PERMCO', 'fyear', 'TLMTA']]
+    CASHMTA = dfo0x.loc[:, ['PERMCO', 'fyear', 'CASHMTA']]
+    MB = dfo0x.loc[:, ['PERMCO', 'fyear', 'MB']]
+    SIGMA = dfo0x.loc[:, ['PERMCO', 'fyear', 'SIGMA']]
+    RSIZE = dfo0x.loc[:, ['PERMCO', 'fyear', 'RSIZE']]
+    EXRET = dfo0x.loc[:, ['PERMCO', 'fyear', 'EXRET']]
+    PRICE = dfo0x.loc[:, ['PERMCO', 'fyear', 'PRICE']]
+    gind_15 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_15']]
+    gind_20 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_20']]
+    gind_25 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_25']]
+    gind_30 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_30']]
+    gind_35 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_35']]
+    gind_40 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_40']]
+    gind_45 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_45']]
+    gind_50 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_50']]
+    gind_55 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_55']]
+    gind_60 = dfo0x.loc[:, ['PERMCO', 'fyear', 'gind_60']]
+    
+    varstr = ['NIMTA', 'TLMTA', 'CASHMTA', 'MB', 'SIGMA', 'RSIZE', 'EXRET'
+              , 'PRICE', 'gind_15', 'gind_20', 'gind_25', 'gind_30',
+              'gind_35', 'gind_40', 'gind_45', 'gind_50', 'gind_55', 'gind_60']
+    var = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+
+    varcols = {c: [] for c in varstr}
+    
+    for i in list(range(18)):
+        var[i] = var[i].set_index(['PERMCO','fyear'])[varstr[i]].unstack()
+        for y in year_list:
+            varcols[varstr[i]].append('{}_{}'.format(varstr[i], y))
+        var[i].columns = varcols[varstr[i]]
+    
+    var_0x1 = [NIMTA, TLMTA, CASHMTA, MB, SIGMA, RSIZE, EXRET, PRICE, 
+           gind_15, gind_20, gind_25, gind_30, gind_35, gind_40, gind_45, 
+           gind_50, gind_55, gind_60]
+
+    for i in list(range(18)):
+        var_0x1[i] = var[i].iloc[:,[0,1]]
+     
+    df_vars = var_0x1[0]
+    
+    for df_ in var_0x1[1:]:
+        df_vars = df_vars.merge(df_, on='PERMCO')
+        
+    ind_todrop = [16,18,20,22,24,26,28,30,32,34]
+    df_vars.drop(columns=df_vars.columns[ind_todrop], inplace=True)
+    
+    col_names = ['NIMTA_t','NIMTA_t+1','TLMTA_t','TLMTA_t+1','CASHMTA_t','CASHMTA_t+1','MB_t','MB_t+1','SIGMA_t',
+             'SIGMA_t+1','RSIZE_t','RSIZE_t+1','EXRET_t','EXRET_t+1','PRICE_t','PRICE_t+1',
+              'gind_15', 'gind_20', 'gind_25', 'gind_30',
+              'gind_35', 'gind_40', 'gind_45', 'gind_50', 'gind_55', 'gind_60']
+    
+    df_vars.columns = col_names
+    df_vars['PERMCO_Y'] = df_vars.index.astype(str) + '_' + str(year_list[0]+2)
+    df_vars.set_index('PERMCO_Y', inplace=True)
+        
+    df_vars = df_vars.sort_index()
+    
+    return df_vars
+
+#%%
+
+df_tind = [pd.DataFrame() for i in range(15)]
+for i in list(range(15)):
+    df_tind[i] = create_finaldftestind(ogdf_test[i], year_lists[i][3:5])
+    
+#%%
+
+for i in list(range(15)):
+    df_tind[i] = append_dlrsntest(ogdf_test[i], df_tind[i], year_lists[i])
+    df_tind[i] = df_tind[i].sort_index()
+    
+#%%
+
+for i in list(range(15)):
+   df_ind[i].to_csv('dftrain' + str(i) + 'ind.csv')
+
+#%%
+
+for i in list(range(15)): 
+   df_tind[i].to_csv('dftest' + str(i) + 'ind.csv')

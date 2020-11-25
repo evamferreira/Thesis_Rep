@@ -33,7 +33,6 @@ for i, col in enumerate(df_list[0].columns.to_list()):
         df_list[0].drop(columns=[col+'_mean'], inplace=True)
 
 #%%
-#%%
 import itertools
 
 # Create a confusion matrix

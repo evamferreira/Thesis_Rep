@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-import tensorflow as tf
 from imblearn.over_sampling import SMOTE
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score
 from sklearn.metrics import confusion_matrix
@@ -102,7 +101,7 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm, labels, title="SVM Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm, labels, title="SVM \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
@@ -162,7 +161,7 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_sm, labels, title="SVM Oversample Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm_sm, labels, title="SVM w/ Oversampling \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
@@ -218,9 +217,8 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_gs, labels, title="SVM Oversample Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm_gs, labels, title="SVM w/ Tuning \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
     
-

@@ -122,7 +122,7 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm, labels, title="Hazard \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
@@ -134,7 +134,7 @@ plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% a
 
 #%%
 
-w = {0:2, 1:98}
+w = {0:4, 1:96}
 
 logreg_w = LogisticRegression(class_weight=w)
 
@@ -167,7 +167,7 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_w, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm_w, labels, title="Hazard w/ Class Weight \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
@@ -208,7 +208,7 @@ lg3 = LogisticRegression()
 
 #%%
 # define evaluation procedure
-grid = GridSearchCV(lg3,hyperparam_grid,scoring="roc_auc", cv=5)
+grid = GridSearchCV(lg3,hyperparam_grid,scoring="f1", cv=5)
 
 #%%
 grid.fit(X,Y)
@@ -251,7 +251,7 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_w2, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm_w2, labels, title="Hazard w/ Tuning \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
@@ -308,7 +308,7 @@ labels = ['No Bankruptcy', 'Bankruptcy']
 fig = plt.figure(figsize=(16,8))
 
 fig.add_subplot(221)
-plot_confusion_matrix(predict_cm_sm, labels, title="Predictions \n Confusion Matrix", cmap=plt.cm.Oranges)
+plot_confusion_matrix(predict_cm_sm, labels, title="Hazard w/ Oversampling \n Confusion Matrix", cmap=plt.cm.Oranges)
 
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)

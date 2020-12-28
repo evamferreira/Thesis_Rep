@@ -28,7 +28,7 @@ import itertools
 
 # Create a confusion matrix
 def plot_confusion_matrix(cm, classes,
-                          normalize=False,
+                          normalize=True,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues):
     """
@@ -88,8 +88,12 @@ def logreg_nosm_nowc(df, df_t):
     logreg = LogisticRegression()
 
     logreg.fit(df.iloc[:,:16], df.iloc[:,16:])
-
+    
     predictions = logreg.predict(df_t.iloc[:,:16])
+
+    #weights = logreg.coef_[0]
+
+    #probas = logreg.predict_proba(df_t.iloc[:,:16])
 
     y_test = df_t.iloc[:,16:]['y_t+2'].values
 
@@ -98,7 +102,7 @@ def logreg_nosm_nowc(df, df_t):
     recall = recall_score(y_test, predictions)
     precision = precision_score(y_test, predictions)
     
-    return predictions, y_test, f1, acc, recall, precision
+    return predictions, y_test, f1, acc, recall, precision#, probas, weights
 
 #%%
 predictions = [[] for i in range(15)]
@@ -107,15 +111,44 @@ f1s = [None for i in range(15)]
 accs = [None for i in range(15)]
 recalls = [None for i in range(15)]
 precisions = [None for i in range(15)]
+probas = [None for i in range(15)]
+#weights = [None for i in range(15)]
 
 for i in list(range(15)):
     predictions[i], y_tests[i], f1s[i], accs[i], recalls[i], precisions[i] = logreg_nosm_nowc(df_list[i], df_test[i])
 
 #%%
+"""import copy
+threshold = 0.4
+predprob = copy.deepcopy(predictions)
+
+for i in list(range(15)):
+    for j in list(range(len(probas[i]))):
+        prob = probas[i][j][1]
+        if prob >= threshold:
+            predprob[i][j] = 1.0
+        else:
+            predprob[i][j] = 0.0
+
+#%%
+f1s_prob = [None for i in range(15)]
+accs_prob = [None for i in range(15)]
+recalls_prob = [None for i in range(15)]
+precisions_prob = [None for i in range(15)]
+
+for i in list(range(15)):
+    f1s_prob[i] = f1_score(y_tests[i], predprob[i])
+    accs_prob[i] = accuracy_score(y_tests[i], predprob[i])
+    recalls_prob[i] = recall_score(y_tests[i], predprob[i])
+    precisions_prob[i] = precision_score(y_tests[i], predprob[i])
+ """           
+#%%
 
 for i in list(range(15)):
     y_tests[i] = y_tests[i].reshape(y_tests[i].shape[0],1)
     predictions[i] = predictions[i].reshape(predictions[i].shape[0],1)
+    #predprob[i] = predprob[i].reshape(predprob[i].shape[0],1)
+    
 
 #%%
 predict_cm = confusion_matrix(np.vstack(y_tests), np.vstack(predictions))
@@ -130,23 +163,74 @@ plot_confusion_matrix(predict_cm, labels, title="DTH w/o Oversampling w/o Weighe
 fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
 
-print('Basic (f1, acc, recall, precision):', np.mean(f1s), np.mean(accs), np.mean(recalls), np.mean(precisions))
+print('Simple Logit (f1, acc, recall, precision):', np.mean(f1s), np.mean(accs), np.mean(recalls), np.mean(precisions))
+
+#%%
+"""predict_cm_prob = confusion_matrix(np.vstack(y_tests), np.vstack(predprob))
+actual_cm = confusion_matrix(np.vstack(y_tests), np.vstack(y_tests))
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_prob, labels, title="DTH w/o Oversampling w/o Weighed-Class (With dif threshold) \n Confusion Matrix", cmap=plt.cm.Blues)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+print('Basic w/ threshold (f1, acc, recall, precision):', np.mean(f1s_prob), np.mean(accs_prob), np.mean(recalls_prob), np.mean(precisions_prob))
 
 #%%
 
+argmax = [None for i in range(15)]
+
+for i in list(range(15)):
+    argmax[i] = np.argmax(np.absolute(weights[i]))
+"""
+#%%
+
 #WEIGHTED CLASS LOGREG
+from sklearn.model_selection import GridSearchCV
+
+#%%
+
+def tuning(df,i=False):
+
+    gs_w = [{0:1000,1:100},{0:1000,1:10}, {0:1000,1:1.0}, 
+     {0:500,1:1.0}, {0:400,1:1.0}, {0:300,1:1.0}, {0:200,1:1.0}, 
+     {0:150,1:1.0}, {0:100,1:1.0}, {0:99,1:1.0}, {0:10,1:1.0}, 
+     {0:0.01,1:1.0}, {0:0.01,1:10}, {0:0.01,1:100}, 
+     {0:0.001,1:1.0}, {0:0.005,1:1.0}, {0:1.0,1:1.0}, 
+     {0:1.0,1:0.1}, {0:10,1:0.1}, {0:100,1:0.1}, 
+     {0:10,1:0.01}, {0:1.0,1:0.01}, {0:1.0,1:0.001}, {0:1.0,1:0.005}, 
+     {0:1.0,1:10}, {0:1.0,1:99}, {0:1.0,1:100}, {0:1.0,1:150}, 
+     {0:1.0,1:200}, {0:1.0,1:300},{0:1.0,1:400},{0:1.0,1:500}, 
+     {0:1.0,1:1000}, {0:10,1:1000},{0:100,1:1000}, {0:4,1:96} ]
+
+    param_grid = {"class_weight": gs_w }
+
+    grid = GridSearchCV(LogisticRegression(),param_grid, scoring="f1", verbose=2)
+    
+    if i==True:
+        grid.fit(df.iloc[:,:26], df.iloc[:,26:])
+    else:
+        grid.fit(df.iloc[:,:16], df.iloc[:,16:])
+
+    return grid.best_params_
 
 #%%
 
 def logreg_nosm_wc(df, df_t):
     
+    best_p = tuning(df)
     
-    w = {0:4, 1:96}
-    logreg = LogisticRegression(class_weight=w)
+    logreg = LogisticRegression(**best_p)
 
     logreg.fit(df.iloc[:,:16], df.iloc[:,16:])
 
     predictions = logreg.predict(df_t.iloc[:,:16])
+
+    #weights = logreg.coef_[0]
 
     y_test = df_t.iloc[:,16:]['y_t+2'].values
 
@@ -167,7 +251,8 @@ precisions_wc = [None for i in range(15)]
 
 for i in list(range(15)):
     predictions_wc[i], y_tests_wc[i], f1s_wc[i], accs_wc[i], recalls_wc[i], precisions_wc[i] = logreg_nosm_wc(df_list[i], df_test[i])
-
+    print('///////////////', i)
+    
 #%%
 
 for i in list(range(15)):
@@ -214,6 +299,8 @@ def logreg_sm_nowc(df, df_t):
 
     predictions = logreg.predict(df_t.iloc[:,:16])
 
+    #probas = logreg.predict_proba(df_t.iloc[:,:16])
+
     y_test = df_t.iloc[:,16:]['y_t+2'].values
 
     f1 = f1_score(y_test, predictions)
@@ -221,7 +308,7 @@ def logreg_sm_nowc(df, df_t):
     recall = recall_score(y_test, predictions)
     precision = precision_score(y_test, predictions)
     
-    return predictions, y_test, f1, acc, recall, precision
+    return predictions, y_test, f1, acc, recall, precision#, probas
 
 #%%
 predictions_sm = [[] for i in range(15)]
@@ -230,15 +317,44 @@ f1s_sm = [None for i in range(15)]
 accs_sm = [None for i in range(15)]
 recalls_sm = [None for i in range(15)]
 precisions_sm = [None for i in range(15)]
+#probas_sm = [None for i in range(15)]
 
 for i in list(range(15)):
     predictions_sm[i], y_tests_sm[i], f1s_sm[i], accs_sm[i], recalls_sm[i], precisions_sm[i] = logreg_sm_nowc(df_list[i], df_test[i])
 
 #%%
+"""
+import copy
+threshold = 0.9
+predprob_sm = copy.deepcopy(predictions_sm)
+
+for i in list(range(15)):
+    for j in list(range(len(probas_sm[i]))):
+        prob = probas_sm[i][j][1]
+        if prob >= threshold:
+            predprob_sm[i][j] = 1.0
+        else:
+            predprob_sm[i][j] = 0.0
+ 
+#%%
+
+f1s_prob_sm = [None for i in range(15)]
+accs_prob_sm = [None for i in range(15)]
+recalls_prob_sm = [None for i in range(15)]
+precisions_prob_sm = [None for i in range(15)]
+
+for i in list(range(15)):
+    f1s_prob_sm[i] = f1_score(y_tests[i], predprob_sm[i])
+    accs_prob_sm[i] = accuracy_score(y_tests[i], predprob_sm[i])
+    recalls_prob_sm[i] = recall_score(y_tests[i], predprob_sm[i])
+    precisions_prob_sm[i] = precision_score(y_tests[i], predprob_sm[i])
+"""            
+#%%
 
 for i in list(range(15)):
     y_tests_sm[i] = y_tests_sm[i].reshape(y_tests_sm[i].shape[0],1)
     predictions_sm[i] = predictions_sm[i].reshape(predictions_sm[i].shape[0],1)
+    #predprob_sm[i] = predprob_sm[i].reshape(predprob_sm[i].shape[0],1)
     
 #%%
 predict_cm_sm = confusion_matrix(np.vstack(y_tests_sm), np.vstack(predictions_sm))
@@ -255,6 +371,22 @@ plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% a
 
 print('SM (f1, acc, recall, precision):', np.mean(f1s_sm), np.mean(accs_sm), np.mean(recalls_sm), np.mean(precisions_sm))
 
+#%%
+"""
+predict_cm_smprob = confusion_matrix(np.vstack(y_tests_sm), np.vstack(predprob_sm))
+actual_cm = confusion_matrix(np.vstack(y_tests_sm), np.vstack(y_tests_sm))
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_smprob, labels, title="DTH w/ Oversampling w/o Weighted-Class (w/ threshold) \n Confusion Matrix", cmap=plt.cm.Blues)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+print('SM (w/ threshold) (f1, acc, recall, precision):', np.mean(f1s_prob_sm), np.mean(accs_prob_sm), np.mean(recalls_prob_sm), np.mean(precisions_prob_sm))
+"""
 #%%
 
 # INDUSTRY EFFECTS
@@ -411,9 +543,9 @@ print('SMI (f1, acc, recall, precision):', np.mean(f1s_smi), np.mean(accs_smi), 
 
 def logreg_nosm_wc_ind(df, df_t):
     
-    #with weighted class recall is higher but f1 is worse
-    w = {0: 4, 1: 96}
-    logreg = LogisticRegression(class_weight=w)
+    best_p = tuning(df,True)
+    
+    logreg = LogisticRegression(**best_p)
 
     logreg.fit(df.iloc[:,:26], df.iloc[:,26:])
 
@@ -464,7 +596,7 @@ precisions_wci = [None for i in range(15)]
 
 for i in list(range(15)):
     predictions_wci[i], y_tests_wci[i], f1s_wci[i], accs_wci[i], recalls_wci[i], precisions_wci[i] = logreg_nosm_wc_ind(df_ind[i], df_tind[i])
-
+    print('/////////////////',i)
 #%%
 
 for i in list(range(15)):
@@ -485,3 +617,56 @@ fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
 
 print('WCI (f1, acc, recall, precision):', np.mean(f1s_wci), np.mean(accs_wci), np.mean(recalls_wci), np.mean(precisions_wci))
+
+#%%
+
+rec_df = pd.DataFrame(list(zip(recalls, recalls_wc, recalls_sm, recalls_i, recalls_wci, recalls_smi)), columns = ['Basic', 'WC', 'SM', 'Ind','WCI','SMI'],
+                      index=['2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'])
+
+#rec_df.to_csv('rec_df_logit.csv')
+
+#%%
+f1_df = pd.DataFrame(list(zip(f1s, f1s_wc, f1s_sm, f1s_i, f1s_wci, f1s_smi)), columns = ['Basic', 'WC', 'SM', 'Ind','WCI','SMI'],
+                      index=['2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'])
+
+#f1_df.to_csv('f1_df_logit.csv')
+
+#%%
+predict_cm_08 = confusion_matrix(y_tests[3], predictions[3])
+actual_cm = confusion_matrix(y_tests[3], y_tests[3])
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_08, labels, title="Simple Logit (2008) \n Confusion Matrix", cmap=plt.cm.Greys)
+
+#fig.add_subplot(222)
+#plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greys)
+
+#%%
+predict_cm_wci08 = confusion_matrix(y_tests_wci[3], predictions_wci[3])
+actual_cm = confusion_matrix(y_tests_wci[3], y_tests_wci[3])
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_wci08, labels, title="Logit TUNI (2008) \n Confusion Matrix", cmap=plt.cm.Greys)
+
+#fig.add_subplot(222)
+#plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greys)
+
+#%%
+predict_cm_sm08 = confusion_matrix(y_tests_sm[3], predictions_sm[3])
+actual_cm = confusion_matrix(y_tests_sm[3], y_tests_sm[3])
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_sm08, labels, title="Logit SM (2008) \n Confusion Matrix", cmap=plt.cm.Greys)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greys)
+

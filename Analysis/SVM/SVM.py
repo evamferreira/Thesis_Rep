@@ -32,7 +32,7 @@ import itertools
 
 # Create a confusion matrix
 def plot_confusion_matrix(cm, classes,
-                          normalize=False,
+                          normalize=True,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues):
     """
@@ -87,7 +87,7 @@ def svc_nosm_notun(df, df_t):
     svc.fit(df.iloc[:,:16], df.iloc[:,16:])
 
     predictions = svc.predict(df_t.iloc[:,:16])
-
+    
     y_test = df_t.iloc[:,16:]['y_t+2'].values
 
     f1 = f1_score(y_test, predictions)
@@ -130,12 +130,30 @@ print('Basic (f1, acc, recall, precision):', np.mean(f1s), np.mean(accs), np.mea
 #%%
 
 # TUNING 
+from sklearn.model_selection import GridSearchCV
+
+#%%
+
+def tuning(df,i=False):
+
+    param_grid = {'C': [0.1,1, 10, 100], 'gamma': [1,0.1,0.01,0.001], 
+                  'class_weight': [{0:1, 1:1,}, {0:4,1:96}, {0:1, 1:100}]}
+
+    grid = GridSearchCV(svm.SVC(),param_grid, scoring="f1", verbose=2)
+    if i==True:
+        grid.fit(df.iloc[:,:26], df.iloc[:,26:])
+    else:
+        grid.fit(df.iloc[:,:16], df.iloc[:,16:])
+
+    return grid.best_params_
 
 #%%
 
 def svc_nosm_tun(df, df_t):
     
-    svc = svm.SVC(C=1, gamma=0.01, kernel='rbf', class_weight={0:4, 1:96})
+    best_p = tuning(df)
+    
+    svc = svm.SVC(**best_p)
     svc.fit(df.iloc[:,:16], df.iloc[:,16:])
 
     predictions = svc.predict(df_t.iloc[:,:16])
@@ -198,10 +216,12 @@ def svc_sm(df, df_t):
     # This will be the data were we are going to 
     Xsm_train, ysm_train = sm.fit_sample(X_train, y_train)
     
-    svc = svm.SVC(kernel='rbf')
+    svc = svm.SVC(kernel='rbf', probability=False)
     svc.fit(Xsm_train, ysm_train)
 
     predictions = svc.predict(df_t.iloc[:,:16])
+
+    #probas = svc.predict_proba(df_t.iloc[:,:16])
 
     y_test = df_t.iloc[:,16:]['y_t+2'].values
 
@@ -209,7 +229,7 @@ def svc_sm(df, df_t):
     acc = accuracy_score(y_test, predictions)
     recall = recall_score(y_test, predictions)
     precision = precision_score(y_test, predictions)
-    return predictions, y_test, f1, acc, recall, precision
+    return predictions, y_test, f1, acc, recall, precision#, probas
 
 #%%
 predictions_sm = [[] for i in range(15)]
@@ -218,15 +238,44 @@ f1s_sm = [None for i in range(15)]
 accs_sm = [None for i in range(15)]
 recalls_sm = [None for i in range(15)]
 precisions_sm = [None for i in range(15)]
+#probas_sm = [None for i in range(15)]
 
 for i in list(range(15)):
     predictions_sm[i], y_tests_sm[i], f1s_sm[i], accs_sm[i], recalls_sm[i], precisions_sm[i] = svc_sm(df_list[i], df_test[i])
 
 #%%
+"""
+import copy
+threshold = 0.6
+predprob_sm = copy.deepcopy(predictions_sm)
+
+for i in list(range(15)):
+    for j in list(range(len(probas_sm[i]))):
+        prob = probas_sm[i][j][1]
+        if prob >= threshold:
+            predprob_sm[i][j] = 1.0
+        else:
+            predprob_sm[i][j] = 0.0
+ 
+#%%
+
+f1s_prob_sm = [None for i in range(15)]
+accs_prob_sm = [None for i in range(15)]
+recalls_prob_sm = [None for i in range(15)]
+precisions_prob_sm = [None for i in range(15)]
+
+for i in list(range(15)):
+    f1s_prob_sm[i] = f1_score(y_tests_sm[i], predprob_sm[i])
+    accs_prob_sm[i] = accuracy_score(y_tests_sm[i], predprob_sm[i])
+    recalls_prob_sm[i] = recall_score(y_tests_sm[i], predprob_sm[i])
+    precisions_prob_sm[i] = precision_score(y_tests_sm[i], predprob_sm[i])
+  """          
+#%%
 
 for i in list(range(15)):
     y_tests_sm[i] = y_tests_sm[i].reshape(y_tests_sm[i].shape[0],1)
     predictions_sm[i] = predictions_sm[i].reshape(predictions_sm[i].shape[0],1)
+    #predprob_sm[i] = predprob_sm[i].reshape(predprob_sm[i].shape[0],1)
     
 #%%
 predict_cm_sm = confusion_matrix(np.vstack(y_tests_sm), np.vstack(predictions_sm))
@@ -243,6 +292,22 @@ plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% a
 
 print('SM (f1, acc, recall, precision):', np.mean(f1s_sm), np.mean(accs_sm), np.mean(recalls_sm), np.mean(precisions_sm))
 
+#%%
+"""
+predict_cm_smprob = confusion_matrix(np.vstack(y_tests_sm), np.vstack(predprob_sm))
+actual_cm = confusion_matrix(np.vstack(y_tests_sm), np.vstack(y_tests_sm))
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_smprob, labels, title="DTH w/ Oversampling w/o Weighted-Class (w/ threshold) \n Confusion Matrix", cmap=plt.cm.Blues)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
+
+print('SM (w/ threshold) (f1, acc, recall, precision):', np.mean(f1s_prob_sm), np.mean(accs_prob_sm), np.mean(recalls_prob_sm), np.mean(precisions_prob_sm))
+"""
 #%% 
 
 # INDUSTRIES
@@ -396,7 +461,9 @@ print('SMI (f1, acc, recall, precision):', np.mean(f1s_smi), np.mean(accs_smi), 
 
 def svc_nosm_tun_ind(df, df_t):
     
-    svc = svm.SVC(C=1, gamma=0.01, kernel='rbf', class_weight={0:4, 1:96})
+    best_p = tuning(df, True)
+     
+    svc = svm.SVC(**best_p)
     svc.fit(df.iloc[:,:26], df.iloc[:,26:])
 
     predictions = svc.predict(df_t.iloc[:,:26])
@@ -416,6 +483,7 @@ f1s_tni = [None for i in range(15)]
 accs_tni = [None for i in range(15)]
 recalls_tni = [None for i in range(15)]
 precisions_tni = [None for i in range(15)]
+
 for i in list(range(15)):
     predictions_tni[i], y_tests_tni[i], f1s_tni[i], accs_tni[i], recalls_tni[i], precisions_tni[i] = svc_nosm_tun_ind(df_ind[i], df_tind[i])
 
@@ -503,3 +571,43 @@ fig.add_subplot(222)
 plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greens)
 
 print('SMTUNI (f1, acc, recall, precision):', np.mean(f1s_smtni), np.mean(accs_smtni), np.mean(recalls_smtni), np.mean(precisions_smtni))
+
+#%%
+
+rec_df = pd.DataFrame(list(zip(recalls_tn, recalls_sm, recalls_tni, recalls_smi)), columns = ['TUN', 'SM','TUNI','SMI'],
+                      index=['2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'])
+
+#rec_df.to_csv('rec_df_svm.csv')
+
+#%%
+f1_df = pd.DataFrame(list(zip(f1s_tn, f1s_sm, f1s_tni, f1s_smi)), columns = ['TUN', 'SM', 'TUNI','SMI'],
+                      index=['2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'])
+
+#f1_df.to_csv('f1_df_svm.csv')
+
+#%%
+predict_cm_tni08 = confusion_matrix(y_tests_tni[3], predictions_tni[3])
+actual_cm = confusion_matrix(y_tests_tni[3], y_tests_tni[3])
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_tni08, labels, title="SVM TUNI (2008) \n Confusion Matrix", cmap=plt.cm.Greys)
+
+#fig.add_subplot(222)
+#plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greys)
+
+#%%
+predict_cm_sm08 = confusion_matrix(y_tests_sm[3], predictions_sm[3])
+actual_cm = confusion_matrix(y_tests_sm[3], y_tests_sm[3])
+labels = ['No Bankruptcy', 'Bankruptcy']
+
+fig = plt.figure(figsize=(16,8))
+
+fig.add_subplot(221)
+plot_confusion_matrix(predict_cm_sm08, labels, title="SVM SM (2008) \n Confusion Matrix", cmap=plt.cm.Greys)
+
+fig.add_subplot(222)
+plot_confusion_matrix(actual_cm, labels, title="Confusion Matrix \n (with 100% accuracy)", cmap=plt.cm.Greys)
+
